@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Movies – Project SA</title>
+  <link rel="stylesheet" href="../css/style.css"/>
+</head>
+<body class="movies-page">
+
+  <!-- NAV -->
+  <nav class="cinema-nav">
+    <div class="nav-logo">PROJECT SA</div>
+    <div class="nav-right">
+      <div class="nav-user">
+        <div class="nav-avatar" id="navAvatar">S</div>
+        <span id="navName">Loading…</span>
+      </div>
+      <button class="nav-logout" onclick="logout()">Sign Out</button>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <div class="movies-hero">
+    <h1>NOW <span>SHOWING</span></h1>
+    <p>Your personal cinema collection • <span id="heroCount">0</span> films</p>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="movies-toolbar">
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Search movies, genres…"/>
+    </div>
+    <div class="genre-pills" id="genrePills">
+      <button class="pill active" data-genre="all">All</button>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="movies-stats" id="statsBar"></div>
+
+  <!-- GRID -->
+  <div class="movies-grid" id="moviesGrid">
+    <div class="state-msg">🎬 Loading your movies…</div>
+  </div>
+
+  <script src="../js/form-validation.js"></script>
+  <script>
+    if (!requireAuth()) {}
+
+    // Set nav user
+    const user = getUser();
+    if (user) {
+      document.getElementById('navName').textContent = user.name;
+      document.getElementById('navAvatar').textContent = user.name.charAt(0).toUpperCase();
+    }
+
+    let allMovies = [];
+    let activeGenre = 'all';
+
+    // ── Build star rating display
+    function stars(rating) {
+      const full = Math.round(rating / 2);
+      return '★'.repeat(full) + '☆'.repeat(5 - full);
+    }
+
+    // ── Render cards
+    function renderMovies(movies) {
+      const grid = document.getElementById('moviesGrid');
+      document.getElementById('statsBar').innerHTML =
+        `Showing <span>${movies.length}</span> of <span>${allMovies.length}</span> films`;
+
+      if (!movies.length) {
+        grid.innerHTML = '<div class="state-msg">🎬 No movies match your search.</div>';
+        return;
+      }
+
+      grid.innerHTML = movies.map(m => `
+        <div class="movie-card">
+          <div class="movie-poster">
+            <img src="${m.image}" alt="${m.title}" loading="lazy"
+                 onerror="this.src='https://via.placeholder.com/300x450/131927/6b7a99?text=No+Image'"/>
+            <div class="movie-rating-badge">⭐ ${m.rating?.toFixed(1) ?? '—'}</div>
+            <div class="movie-overlay">
+              <div class="overlay-btn">▶ Watch Now</div>
+            </div>
+          </div>
+          <div class="movie-info">
+            <h3 title="${m.title}">${m.title}</h3>
+            <div class="movie-meta">
+              <span class="genre-tag">${m.genre}</span>
+              <span class="dot">•</span>
+              <span>${m.year}</span>
+              <span class="dot">•</span>
+              <span>${m.duration ?? ''}</span>
+            </div>
+            <p class="movie-desc">${m.description}</p>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ── Filter logic
+    function applyFilter() {
+      const q = document.getElementById('searchInput').value.toLowerCase();
+      let filtered = allMovies;
+      if (activeGenre !== 'all') {
+        filtered = filtered.filter(m => m.genre.toLowerCase().includes(activeGenre));
+      }
+      if (q) {
+        filtered = filtered.filter(m =>
+          m.title.toLowerCase().includes(q) ||
+          m.genre.toLowerCase().includes(q) ||
+          m.description.toLowerCase().includes(q)
+        );
+      }
+      renderMovies(filtered);
+    }
+
+    // ── Genre pills
+    function buildGenrePills(movies) {
+      const genres = [...new Set(movies.flatMap(m => m.genre.split(' • ')))].sort();
+      const pills = document.getElementById('genrePills');
+      genres.forEach(g => {
+        const btn = document.createElement('button');
+        btn.className = 'pill';
+        btn.dataset.genre = g.toLowerCase();
+        btn.textContent = g;
+        btn.onclick = () => {
+          activeGenre = btn.dataset.genre;
+          document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+          btn.classList.add('active');
+          applyFilter();
+        };
+        pills.appendChild(btn);
+      });
+    }
+
+    // ── All pill click
+    document.querySelector('.pill[data-genre="all"]').onclick = function() {
+      activeGenre = 'all';
+      document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+      this.classList.add('active');
+      applyFilter();
+    };
+
+    // ── Search
+    document.getElementById('searchInput').addEventListener('input', applyFilter);
+
+    // ── Load movies from API
+    async function loadMovies() {
+      try {
+        const { ok, data } = await apiRequest('/movies');
+        if (!ok || !data.success) throw new Error(data.message || 'Failed');
+        allMovies = data.movies;
+        document.getElementById('heroCount').textContent = allMovies.length;
+        buildGenrePills(allMovies);
+        renderMovies(allMovies);
+      } catch (err) {
+        document.getElementById('moviesGrid').innerHTML =
+          '<div class="state-msg">⚠️ Could not load movies. Is the server running?</div>';
+      }
+    }
+
+    loadMovies();
+  </script>
+</body>
+</html>

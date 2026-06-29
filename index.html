@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Project SA – Cinema</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <script>
+    // Redirect: if logged in → movies, else → login
+    window.onload = () => {
+      const token = localStorage.getItem('sa_token');
+      window.location.href = token ? 'pages/movie-list.html' : 'pages/login.html';
+    };
+  </script>
+</head>
+<body class="auth-page">
+  <div style="text-align:center;color:#6b7a99;">Redirecting…</div>
+</body>
+</html>
